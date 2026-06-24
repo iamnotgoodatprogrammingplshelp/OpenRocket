@@ -1,0 +1,39 @@
+{
+  "name": "openorbit",
+  "version": "0.1.0",
+  "description": "Open-source professional space flight simulator with deep learning AI",
+  "homepage": "https://github.com/iamnotgoodatprogrammingplshelp/openrocket",
+  "license": "Apache-2.0",
+  "dependencies": [
+    {
+      "name": "sfml",
+      "version>=": "2.6.0",
+      "features": ["graphics", "window", "system", "audio"]
+    },
+    {
+      "name": "eigen3",
+      "version>=": "3.4.0"
+    },
+    {
+      "name": "nlohmann-json",
+      "version>=": "3.11.0"
+    },
+    {
+      "name": "catch2",
+      "version>=": "3.4.0"
+    },
+    {
+      "name": "imgui",
+      "version>=": "1.90.0"
+    },
+    {
+      "name": "imgui-sfml",
+      "version>=": "2.6.0"
+    },
+    {
+      "name": "opengl",
+      "platform": "!emscripten"
+    }
+  ],
+  "overrides": []
+}
