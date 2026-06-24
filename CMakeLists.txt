@@ -25,7 +25,7 @@ endif()
 
 find_package(OpenGL REQUIRED)
 find_package(Eigen3 3.4 REQUIRED NO_MODULE)
-find_package(nlohmann_json 3.11 REQUIRED)
+find_package(nlohmann_json 3.10 REQUIRED)
 find_package(Catch2 3 REQUIRED)
 
 # Optional: ImGui-SFML for editor

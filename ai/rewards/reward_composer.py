@@ -7,7 +7,6 @@ combined with weights via RewardComposer.
 
 from __future__ import annotations
 
-import math
 from typing import Protocol, runtime_checkable
 import numpy as np
 
