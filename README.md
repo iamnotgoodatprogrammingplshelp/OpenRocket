@@ -80,11 +80,11 @@ See `docs/ai/getting_started.md` for full instructions.
 
 | Phase | Status | Description |
 |-------|--------|-------------|
-| 1 | ✅ Complete | Headless physics: N-body, RK4/RK45/Verlet, atmosphere, propulsion |
-| 2 | ✅ Complete | SFML window + OpenGL 4.6 bridge, HUD instruments, telemetry graph |
-| 3 | 🔄 Planned | PBR spacecraft meshes, atmospheric scattering, orbital map, VAB |
-| 4 | 🔄 Planned | All 4 reference agents + SFML multi-agent viewport |
-| 5 | 🔄 Planned | Modding API, planet packs, docs, public alpha |
+| 1 | Complete | Headless physics: N-body, RK4/RK45/Verlet, atmosphere, propulsion |
+| 2 | Complete | SFML window + OpenGL 4.6 bridge, HUD instruments, telemetry graph |
+| 3 | Planned | PBR spacecraft meshes, atmospheric scattering, orbital map, VAB |
+| 4 | Planned | All 4 reference agents + SFML multi-agent viewport |
+| 5 | Planned | Modding API, planet packs, docs, public alpha |
 
 ## License
 
