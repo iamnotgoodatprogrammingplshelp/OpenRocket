@@ -3,7 +3,7 @@
 **Professional open-source space flight simulator with a first-class deep learning AI layer.**
 
 Combines the rocket-building freedom of KSP with the visual fidelity of MSFS and exposes a
-Gymnasium-compatible environment so AI agents can train autonomously.
+environment so AI agents can train autonomously.
 
 ## Tech Stack
 
