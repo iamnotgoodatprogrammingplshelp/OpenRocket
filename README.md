@@ -44,7 +44,6 @@ cd build && ctest --output-on-failure
 
 # Full simulator
 ./build/openorbit
-```
 
 ## Headless mode (no GPU required)
 
