@@ -11,7 +11,7 @@ from typing import Protocol, runtime_checkable
 import numpy as np
 
 MU_EARTH = 3.986004418e14
-R_EARTH  = 6.3781e6
+R_EARTH = 6.3781e6
 
 
 @runtime_checkable
@@ -54,6 +54,7 @@ class RewardComposer:
 # Built-in reward components
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 class OrbitalPrecisionReward:
     """
     Reward for matching a target orbit.
@@ -61,18 +62,20 @@ class OrbitalPrecisionReward:
     Normalised so that 10 km altitude error → reward ≈ -1.
     """
 
-    def __init__(self, target_altitude_m: float = 400e3, target_ecc: float = 0.0) -> None:
-        self.target_r   = R_EARTH + target_altitude_m
+    def __init__(
+        self, target_altitude_m: float = 400e3, target_ecc: float = 0.0
+    ) -> None:
+        self.target_r = R_EARTH + target_altitude_m
         self.target_ecc = target_ecc
 
     def compute(self, obs: dict, action: np.ndarray, info: dict) -> float:
         pos = obs.get("position_eci", np.zeros(3))
         vel = obs.get("velocity_eci", np.zeros(3))
-        r   = float(np.linalg.norm(pos))
-        v2  = float(np.linalg.norm(vel) ** 2)
+        r = float(np.linalg.norm(pos))
+        v2 = float(np.linalg.norm(vel) ** 2)
         energy = 0.5 * v2 - MU_EARTH / r
         a = -MU_EARTH / (2 * energy) if abs(energy) > 1e-6 else 1e30
-        alt_err = abs(a - self.target_r) / 10e3   # normalised by 10 km
+        alt_err = abs(a - self.target_r) / 10e3  # normalised by 10 km
         return -alt_err
 
     def reset(self) -> None:
@@ -118,7 +121,9 @@ class SmoothControlReward:
 
     def compute(self, obs: dict, action: np.ndarray, info: dict) -> float:
         if self._prev_action is None:
-            self._prev_action = action.copy() if isinstance(action, np.ndarray) else action
+            self._prev_action = (
+                action.copy() if isinstance(action, np.ndarray) else action
+            )
             return 0.0
         delta = float(np.linalg.norm(action - self._prev_action))
         self._prev_action = action.copy() if isinstance(action, np.ndarray) else action

@@ -26,7 +26,19 @@ endif()
 find_package(OpenGL REQUIRED)
 find_package(Eigen3 3.4 REQUIRED NO_MODULE)
 find_package(nlohmann_json 3.10 REQUIRED)
-find_package(Catch2 3 REQUIRED)
+
+# Catch2 v3 — prefer system install, fall back to FetchContent
+find_package(Catch2 3 QUIET)
+if(NOT Catch2_FOUND)
+    include(FetchContent)
+    FetchContent_Declare(
+        Catch2
+        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+        GIT_TAG        v3.7.0
+        GIT_SHALLOW    TRUE
+    )
+    FetchContent_MakeAvailable(Catch2)
+endif()
 
 # Optional: ImGui-SFML for editor
 find_package(ImGui-SFML QUIET)

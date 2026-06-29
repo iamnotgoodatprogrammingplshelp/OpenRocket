@@ -1,0 +1,123 @@
+name: OpenOrbit CI
+
+on:
+  push:
+    branches: ["main", "claude/**"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  # ────────────────────────────────────────────────────────────────────────────
+  # Phase 1: Build + test the headless C++ physics engine
+  # ────────────────────────────────────────────────────────────────────────────
+  build-headless:
+    name: "C++ headless build & physics tests"
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y \
+            cmake ninja-build \
+            libeigen3-dev \
+            nlohmann-json3-dev \
+            libsfml-dev \
+            libgl1-mesa-dev \
+            libglu1-mesa-dev \
+            pkg-config
+
+      - name: Configure (headless-only)
+        run: |
+          cmake -B build-headless \
+            -DCMAKE_BUILD_TYPE=Release \
+            -GNinja \
+            -DOPENOROBIT_HEADLESS_ONLY=ON
+
+      - name: Build core + headless binary
+        run: cmake --build build-headless --target openorbit_core openorbit_headless test_physics test_propulsion test_aero -j$(nproc)
+
+      - name: Run physics regression tests
+        run: |
+          cd build-headless
+          ctest --output-on-failure --timeout 120
+
+      - name: Phase 1 smoke test (orbit drift validation)
+        run: ./build-headless/openorbit_headless
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Python AI layer tests
+  # ────────────────────────────────────────────────────────────────────────────
+  python-tests:
+    name: "Python AI layer"
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install \
+            gymnasium \
+            numpy \
+            pytest \
+            mypy \
+            ruff \
+            black
+
+      - name: Lint with ruff
+        run: ruff check ai/
+
+      - name: Format check with black
+        run: black --check ai/
+
+      - name: Run Python tests
+        run: pytest tests/python/ -v --tb=short
+
+      - name: mypy strict type check
+        run: mypy ai/ --strict --ignore-missing-imports
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Full build (requires SFML + OpenGL — uses virtual framebuffer)
+  # ────────────────────────────────────────────────────────────────────────────
+  build-full:
+    name: "Full C++ build (SFML + OpenGL)"
+    runs-on: ubuntu-22.04
+    needs: [build-headless]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y \
+            cmake ninja-build \
+            libeigen3-dev nlohmann-json3-dev \
+            libsfml-dev \
+            libgl1-mesa-dev libglu1-mesa-dev \
+            xvfb mesa-utils \
+            pkg-config
+
+      - name: Configure (full build)
+        run: |
+          cmake -B build-full \
+            -DCMAKE_BUILD_TYPE=Release \
+            -GNinja
+
+      - name: Build all targets
+        run: cmake --build build-full -j$(nproc)
+
+      - name: Upload openorbit binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: openorbit-linux
+          path: build-full/openorbit
