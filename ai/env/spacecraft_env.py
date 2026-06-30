@@ -26,32 +26,35 @@ from gymnasium import spaces
 # Constants
 # ──────────────────────────────────────────────────────────────────────────────
 
-MU_EARTH: float = 3.986004418e14   # m³/s²
-R_EARTH:  float = 6.3781e6         # m
-G0:       float = 9.80665          # m/s²
+MU_EARTH: float = 3.986004418e14  # m³/s²
+R_EARTH: float = 6.3781e6  # m
+G0: float = 9.80665  # m/s²
 
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Vehicle configuration
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class VehicleConfig:
     """Defines the spacecraft structure for a scenario."""
-    n_engines: int      = 1
-    n_tanks:   int      = 1
-    n_gimbals: int      = 1
-    n_rcs:     int      = 4
-    n_surfaces: int     = 0
-    dry_mass_kg: float  = 3000.0
+
+    n_engines: int = 1
+    n_tanks: int = 1
+    n_gimbals: int = 1
+    n_rcs: int = 4
+    n_surfaces: int = 0
+    dry_mass_kg: float = 3000.0
     fuel_mass_kg: float = 2000.0
-    isp_vac_s: float    = 348.0
+    isp_vac_s: float = 348.0
     thrust_vac_N: float = 934_000.0
 
 
 @dataclass
 class ScenarioConfig:
     """Initial conditions and goal specification for an episode."""
+
     name: str = "circular_leo"
 
     # Initial orbit (if None → use initial_state directly)
@@ -59,17 +62,17 @@ class ScenarioConfig:
     initial_eccentricity: float = 0.0
 
     # Target orbit
-    target_altitude_m: float  = 400e3
+    target_altitude_m: float = 400e3
     target_eccentricity: float = 0.0
 
     # Episode limits
-    max_steps: int   = 5000
-    dt_s: float      = 0.5     # physics timestep
+    max_steps: int = 5000
+    dt_s: float = 0.5  # physics timestep
 
     # Noise levels (0 = perfect sensors)
-    imu_accel_noise:  float = 0.02    # m/s²  (1σ)
-    imu_gyro_noise:   float = 0.001   # rad/s (1σ)
-    gps_pos_noise:    float = 2.5     # m     (CEP)
+    imu_accel_noise: float = 0.02  # m/s²  (1σ)
+    imu_gyro_noise: float = 0.001  # rad/s (1σ)
+    gps_pos_noise: float = 2.5  # m     (CEP)
 
     vehicle: VehicleConfig = field(default_factory=VehicleConfig)
 
@@ -78,6 +81,7 @@ class ScenarioConfig:
 # Pure-Python fallback physics (used when C++ bridge is unavailable)
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 class _FallbackPhysics:
     """
     Minimal N-body propagator in Python (RK4, Earth-only).
@@ -85,7 +89,7 @@ class _FallbackPhysics:
     """
 
     def __init__(self, cfg: ScenarioConfig) -> None:
-        self.cfg  = cfg
+        self.cfg = cfg
         r = R_EARTH + cfg.initial_altitude_m
         v = math.sqrt(MU_EARTH / r)
         self.pos = np.array([r, 0.0, 0.0])
@@ -100,8 +104,9 @@ class _FallbackPhysics:
         r3 = np.linalg.norm(pos) ** 3
         return -MU_EARTH / r3 * pos
 
-    def _deriv(self, pos: np.ndarray, vel: np.ndarray,
-               thrust_force: np.ndarray, mass: float) -> tuple[np.ndarray, np.ndarray]:
+    def _deriv(
+        self, pos: np.ndarray, vel: np.ndarray, thrust_force: np.ndarray, mass: float
+    ) -> tuple[np.ndarray, np.ndarray]:
         g = self._gravity(pos)
         a = g + thrust_force / max(mass, 1.0)
         return vel, a
@@ -111,7 +116,7 @@ class _FallbackPhysics:
         # Thrust force in ECI (simplified: along velocity direction)
         if self.fuel > 0 and throttle > 0:
             thrust_mag = self.cfg.vehicle.thrust_vac_N * throttle
-            isp  = self.cfg.vehicle.isp_vac_s
+            isp = self.cfg.vehicle.isp_vac_s
             mdot = thrust_mag / (isp * G0)
             v_hat = self.vel / (np.linalg.norm(self.vel) + 1e-10)
             thrust = v_hat * thrust_mag
@@ -122,13 +127,19 @@ class _FallbackPhysics:
 
         # RK4
         k1p, k1v = self._deriv(self.pos, self.vel, thrust, self.mass)
-        k2p, k2v = self._deriv(self.pos + k1p*(dt/2), self.vel + k1v*(dt/2), thrust, self.mass)
-        k3p, k3v = self._deriv(self.pos + k2p*(dt/2), self.vel + k2v*(dt/2), thrust, self.mass)
-        k4p, k4v = self._deriv(self.pos + k3p*dt,    self.vel + k3v*dt,    thrust, self.mass)
+        k2p, k2v = self._deriv(
+            self.pos + k1p * (dt / 2), self.vel + k1v * (dt / 2), thrust, self.mass
+        )
+        k3p, k3v = self._deriv(
+            self.pos + k2p * (dt / 2), self.vel + k2v * (dt / 2), thrust, self.mass
+        )
+        k4p, k4v = self._deriv(
+            self.pos + k3p * dt, self.vel + k3v * dt, thrust, self.mass
+        )
 
-        self.pos += dt / 6.0 * (k1p + 2*k2p + 2*k3p + k4p)
-        self.vel += dt / 6.0 * (k1v + 2*k2v + 2*k3v + k4v)
-        self.t   += dt
+        self.pos += dt / 6.0 * (k1p + 2 * k2p + 2 * k3p + k4p)
+        self.vel += dt / 6.0 * (k1v + 2 * k2v + 2 * k3v + k4v)
+        self.t += dt
 
     @property
     def altitude(self) -> float:
@@ -142,6 +153,7 @@ class _FallbackPhysics:
 # ──────────────────────────────────────────────────────────────────────────────
 # Gymnasium environment
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class SpacecraftEnv(gym.Env[dict[str, np.ndarray], dict[str, np.ndarray]]):
     """
@@ -181,46 +193,50 @@ class SpacecraftEnv(gym.Env[dict[str, np.ndarray], dict[str, np.ndarray]]):
         render_mode: str | None = None,
     ) -> None:
         super().__init__()
-        self.cfg         = scenario or ScenarioConfig()
+        self.cfg = scenario or ScenarioConfig()
         self.render_mode = render_mode
-        self._rng        = np.random.default_rng()
+        self._rng = np.random.default_rng()
         self._physics: _FallbackPhysics | None = None
         self._step_count = 0
 
-        v  = self.cfg.vehicle
+        v = self.cfg.vehicle
         Ne = v.n_engines
         Ng = v.n_gimbals
         Nr = v.n_rcs
         Nt = v.n_tanks
 
         # ── Observation space ─────────────────────────────────────────────────
-        self.observation_space = spaces.Dict({
-            "position_eci":      spaces.Box(-1e9,  1e9,  (3,), np.float64),
-            "velocity_eci":      spaces.Box(-1e5,  1e5,  (3,), np.float64),
-            "altitude":          spaces.Box(0,     1e9,  (1,), np.float64),
-            "orbital_elements":  spaces.Box(-np.inf, np.inf, (6,), np.float64),
-            "quaternion":        spaces.Box(-1,    1,    (4,), np.float64),
-            "angular_velocity":  spaces.Box(-50,   50,   (3,), np.float64),
-            "mass":              spaces.Box(0,     1e7,  (1,), np.float64),
-            "fuel_fraction":     spaces.Box(0,     1,    (Nt,), np.float32),
-            "engine_throttle":   spaces.Box(0,     1,    (Ne,), np.float32),
-            "temperature_map":   spaces.Box(0,     5000, (1,), np.float32),
-            "target_position":   spaces.Box(-1e9,  1e9,  (3,), np.float64),
-            "target_velocity":   spaces.Box(-1e5,  1e5,  (3,), np.float64),
-            "time_to_apoapsis":  spaces.Box(0,     1e6,  (1,), np.float64),
-            "time_to_periapsis": spaces.Box(0,     1e6,  (1,), np.float64),
-            "imu_accel":         spaces.Box(-200,  200,  (3,), np.float32),
-            "imu_gyro":          spaces.Box(-50,   50,   (3,), np.float32),
-            "gps_position":      spaces.Box(-1e9,  1e9,  (3,), np.float64),
-        })
+        self.observation_space = spaces.Dict(
+            {
+                "position_eci": spaces.Box(-1e9, 1e9, (3,), np.float64),
+                "velocity_eci": spaces.Box(-1e5, 1e5, (3,), np.float64),
+                "altitude": spaces.Box(0, 1e9, (1,), np.float64),
+                "orbital_elements": spaces.Box(-np.inf, np.inf, (6,), np.float64),
+                "quaternion": spaces.Box(-1, 1, (4,), np.float64),
+                "angular_velocity": spaces.Box(-50, 50, (3,), np.float64),
+                "mass": spaces.Box(0, 1e7, (1,), np.float64),
+                "fuel_fraction": spaces.Box(0, 1, (Nt,), np.float32),
+                "engine_throttle": spaces.Box(0, 1, (Ne,), np.float32),
+                "temperature_map": spaces.Box(0, 5000, (1,), np.float32),
+                "target_position": spaces.Box(-1e9, 1e9, (3,), np.float64),
+                "target_velocity": spaces.Box(-1e5, 1e5, (3,), np.float64),
+                "time_to_apoapsis": spaces.Box(0, 1e6, (1,), np.float64),
+                "time_to_periapsis": spaces.Box(0, 1e6, (1,), np.float64),
+                "imu_accel": spaces.Box(-200, 200, (3,), np.float32),
+                "imu_gyro": spaces.Box(-50, 50, (3,), np.float32),
+                "gps_position": spaces.Box(-1e9, 1e9, (3,), np.float64),
+            }
+        )
 
         # ── Action space ──────────────────────────────────────────────────────
-        self.action_space = spaces.Dict({
-            "throttle": spaces.Box(0, 1, (Ne,), np.float32),
-            "gimbal":   spaces.Box(-1, 1, (Ng, 2), np.float32),
-            "rcs":      spaces.Box(0, 1, (Nr,), np.float32),
-            "staging":  spaces.Discrete(2),
-        })
+        self.action_space = spaces.Dict(
+            {
+                "throttle": spaces.Box(0, 1, (Ne,), np.float32),
+                "gimbal": spaces.Box(-1, 1, (Ng, 2), np.float32),
+                "rcs": spaces.Box(0, 1, (Nr,), np.float32),
+                "staging": spaces.Discrete(2),
+            }
+        )
 
     # ─────────────────────────────────────────────────────────────────────────
     # Gym interface
@@ -236,10 +252,10 @@ class SpacecraftEnv(gym.Env[dict[str, np.ndarray], dict[str, np.ndarray]]):
         if seed is not None:
             self._rng = np.random.default_rng(seed)
 
-        self._physics    = _FallbackPhysics(self.cfg)
+        self._physics = _FallbackPhysics(self.cfg)
         self._step_count = 0
 
-        obs  = self._get_obs()
+        obs = self._get_obs()
         info = self._get_info()
         return obs, info
 
@@ -249,16 +265,18 @@ class SpacecraftEnv(gym.Env[dict[str, np.ndarray], dict[str, np.ndarray]]):
         assert self._physics is not None, "Call reset() before step()"
 
         throttle = float(np.mean(action["throttle"]))
-        gimbal   = action.get("gimbal", np.zeros((self.cfg.vehicle.n_gimbals, 2), np.float32))
+        gimbal = action.get(
+            "gimbal", np.zeros((self.cfg.vehicle.n_gimbals, 2), np.float32)
+        )
 
         self._physics.step(throttle, gimbal[0] if len(gimbal) > 0 else np.zeros(2))
         self._step_count += 1
 
-        obs      = self._get_obs()
-        reward   = self._compute_reward(obs, action)
-        done     = self._is_done()
+        obs = self._get_obs()
+        reward = self._compute_reward(obs, action)
+        done = self._is_done()
         truncated = self._step_count >= self.cfg.max_steps
-        info     = self._get_info()
+        info = self._get_info()
 
         return obs, reward, done, truncated, info
 
@@ -272,7 +290,7 @@ class SpacecraftEnv(gym.Env[dict[str, np.ndarray], dict[str, np.ndarray]]):
             if p is not None:
                 alt_frac = min(p.altitude / 1000e3, 1.0)
                 bar_h = int(alt_frac * h)
-                img[h - bar_h:, w//4 : w//2, 1] = 180
+                img[h - bar_h :, w // 4 : w // 2, 1] = 180
             return img
         return None
 
@@ -286,8 +304,8 @@ class SpacecraftEnv(gym.Env[dict[str, np.ndarray], dict[str, np.ndarray]]):
 
         # Noisy sensor readings
         accel_noise = self._rng.normal(0, self.cfg.imu_accel_noise, 3)
-        gyro_noise  = self._rng.normal(0, self.cfg.imu_gyro_noise,  3)
-        gps_noise   = self._rng.normal(0, self.cfg.gps_pos_noise,   3)
+        gyro_noise = self._rng.normal(0, self.cfg.imu_gyro_noise, 3)
+        gps_noise = self._rng.normal(0, self.cfg.gps_pos_noise, 3)
 
         # Approximate orbital elements from Cartesian state
         r_mag = np.linalg.norm(p.pos)
@@ -298,34 +316,40 @@ class SpacecraftEnv(gym.Env[dict[str, np.ndarray], dict[str, np.ndarray]]):
         e = float(np.linalg.norm(e_vec))
 
         # Circular orbit period-based time to apo/peri (simplified)
-        T = 2 * math.pi * math.sqrt(max(a, 1.0)**3 / MU_EARTH)
+        T = 2 * math.pi * math.sqrt(max(a, 1.0) ** 3 / MU_EARTH)
         phase = math.atan2(p.pos[1], p.pos[0]) % (2 * math.pi)
-        t_apo  = max(0.0, T * (math.pi - phase) / (2 * math.pi))
+        t_apo = max(0.0, T * (math.pi - phase) / (2 * math.pi))
         t_peri = max(0.0, T * (2 * math.pi - phase) / (2 * math.pi))
 
-        fuel_frac = np.array([p.fuel / max(self.cfg.vehicle.fuel_mass_kg, 1.0)], dtype=np.float32)
+        fuel_frac = np.array(
+            [p.fuel / max(self.cfg.vehicle.fuel_mass_kg, 1.0)], dtype=np.float32
+        )
 
         return {
-            "position_eci":      p.pos.astype(np.float64),
-            "velocity_eci":      p.vel.astype(np.float64),
-            "altitude":          np.array([p.altitude], dtype=np.float64),
-            "orbital_elements":  np.array([a, e, 0.0, 0.0, 0.0, phase], dtype=np.float64),
-            "quaternion":        p.quat.astype(np.float64),
-            "angular_velocity":  (p.omega + gyro_noise).astype(np.float32),
-            "mass":              np.array([p.mass], dtype=np.float64),
-            "fuel_fraction":     fuel_frac,
-            "engine_throttle":   np.zeros(self.cfg.vehicle.n_engines, dtype=np.float32),
-            "temperature_map":   np.array([293.15], dtype=np.float32),
-            "target_position":   np.array([R_EARTH + self.cfg.target_altitude_m, 0, 0],
-                                          dtype=np.float64),
-            "target_velocity":   np.array([0,
-                                            math.sqrt(MU_EARTH / (R_EARTH + self.cfg.target_altitude_m)),
-                                            0], dtype=np.float64),
-            "time_to_apoapsis":  np.array([t_apo],  dtype=np.float64),
+            "position_eci": p.pos.astype(np.float64),
+            "velocity_eci": p.vel.astype(np.float64),
+            "altitude": np.array([p.altitude], dtype=np.float64),
+            "orbital_elements": np.array(
+                [a, e, 0.0, 0.0, 0.0, phase], dtype=np.float64
+            ),
+            "quaternion": p.quat.astype(np.float64),
+            "angular_velocity": (p.omega + gyro_noise).astype(np.float32),
+            "mass": np.array([p.mass], dtype=np.float64),
+            "fuel_fraction": fuel_frac,
+            "engine_throttle": np.zeros(self.cfg.vehicle.n_engines, dtype=np.float32),
+            "temperature_map": np.array([293.15], dtype=np.float32),
+            "target_position": np.array(
+                [R_EARTH + self.cfg.target_altitude_m, 0, 0], dtype=np.float64
+            ),
+            "target_velocity": np.array(
+                [0, math.sqrt(MU_EARTH / (R_EARTH + self.cfg.target_altitude_m)), 0],
+                dtype=np.float64,
+            ),
+            "time_to_apoapsis": np.array([t_apo], dtype=np.float64),
             "time_to_periapsis": np.array([t_peri], dtype=np.float64),
-            "imu_accel":         (self._gravity_accel(p.pos) + accel_noise).astype(np.float32),
-            "imu_gyro":          (p.omega + gyro_noise).astype(np.float32),
-            "gps_position":      (p.pos + gps_noise).astype(np.float64),
+            "imu_accel": (self._gravity_accel(p.pos) + accel_noise).astype(np.float32),
+            "imu_gyro": (p.omega + gyro_noise).astype(np.float32),
+            "gps_position": (p.pos + gps_noise).astype(np.float64),
         }
 
     def _gravity_accel(self, pos: np.ndarray) -> np.ndarray:
@@ -372,9 +396,9 @@ class SpacecraftEnv(gym.Env[dict[str, np.ndarray], dict[str, np.ndarray]]):
         p = self._physics
         assert p is not None
         return {
-            "altitude_km":    p.altitude / 1000.0,
-            "speed_kms":      p.speed / 1000.0,
+            "altitude_km": p.altitude / 1000.0,
+            "speed_kms": p.speed / 1000.0,
             "fuel_remaining": p.fuel,
-            "sim_time_s":     p.t,
-            "step":           self._step_count,
+            "sim_time_s": p.t,
+            "step": self._step_count,
         }
