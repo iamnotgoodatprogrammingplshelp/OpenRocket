@@ -1,28 +1,35 @@
 /**
  * @file main.cpp
- * @brief OpenOrbit — Phase 2 main entry point.
+ * @brief OpenOrbit — Phase 3 main entry point.
  *
  * Demonstrates the full SFML + OpenGL pipeline:
  *   - SFML RenderWindow with OpenGL 4.6 core-profile context
+ *   - AtmosphericScattering (Nishita 1993 sky dome)
  *   - PlanetRenderer (UV-sphere, Cook-Torrance shading)
+ *   - SpacecraftMesh (PBR metallic-roughness, engine glow)
  *   - SFMLOpenGLBridge (HDR FBO → tone-map → SFML texture blit)
  *   - AltimeterGauge + TelemetryGraph composited as SFML 2D HUD
- *   - PhysicsWorld running a LEO spacecraft in a background thread
+ *   - VABEditor (vehicle assembly, delta-V calculator)
+ *   - PhysicsWorld running a LEO spacecraft
  *
  * Controls:
  *   Z / X   — throttle up / down
  *   Space   — stage
  *   M       — toggle orbital map
  *   H       — toggle HUD
+ *   V       — toggle VAB editor
  *   Escape  — quit
  */
 
 #include "renderer/window/AppWindow.hpp"
 #include "renderer/sfml_opengl_bridge/SFMLOpenGLBridge.hpp"
 #include "renderer/gl3d/PlanetRenderer.hpp"
+#include "renderer/gl3d/AtmosphericScattering.hpp"
+#include "renderer/gl3d/SpacecraftMesh.hpp"
 #include "renderer/hud/instruments/AltimeterGauge.hpp"
 #include "renderer/hud/telemetry/TelemetryGraph.hpp"
 #include "renderer/hud/map/OrbitalMap.hpp"
+#include "renderer/vab/VABEditor.hpp"
 #include "core/physics/PhysicsWorld.hpp"
 #include "core/world/CelestialBody.hpp"
 #include "core/propulsion/Engine.hpp"
@@ -100,7 +107,9 @@ int main() {
 
     // ── 3D renderer ──────────────────────────────────────────────────────────
     win.activateGL();
-    renderer::PlanetRenderer planets;
+    renderer::PlanetRenderer         planets;
+    renderer::AtmosphericScattering  atmosphere;
+    renderer::SpacecraftMesh         spacecraftMesh(renderer::SpacecraftMesh::Preset::RocketStage);
     win.deactivateGL();
 
     // ── HUD font ─────────────────────────────────────────────────────────────
@@ -126,7 +135,8 @@ int main() {
     int altSeries = telemetry.addSeries("Altitude (km)", sf::Color(0x00, 0x88, 0xFF, 0xFF));
     int spdSeries = telemetry.addSeries("Speed (km/s)",  sf::Color(0x00, 0xFF, 0x88, 0xFF));
 
-    hud::OrbitalMap mapPanel(font, 280.0f, 280.0f);
+    hud::OrbitalMap    mapPanel(font, 280.0f, 280.0f);
+    vab::VABEditor     vabEditor(font);
     bool showMap = true;
     bool showHUD = true;
 
@@ -162,6 +172,7 @@ int main() {
     cbs.onThrottleDown = [&] { throttleCmd = std::max(throttleCmd.load() - 0.1f, 0.0f); };
     cbs.onToggleMap    = [&] { showMap = !showMap; };
     cbs.onToggleHUD    = [&] { showHUD = !showHUD; };
+    cbs.onToggleVAB    = [&] { vabEditor.toggle(); };
     win.setInputCallbacks(cbs);
 
     // ── Camera ────────────────────────────────────────────────────────────────
@@ -212,8 +223,17 @@ int main() {
                                        1000.0f, 2e8f, proj);
             Eigen::Vector3f camPos = camera.position();
 
-            // Draw Earth centred at origin (spacecraft position offset handled in camera)
+            // Sky dome first (no depth writes, always at far plane)
+            atmosphere.draw(view, proj, camPos, sunDir);
+
+            // Earth
             planets.draw(earthDef, view, proj, camPos, sunDir);
+
+            // Spacecraft (positioned at simulation coordinates)
+            Eigen::Matrix4f model = Eigen::Matrix4f::Identity();
+            model.col(3).head<3>() = scPosF;
+            spacecraftMesh.draw(model.data(), view, proj,
+                                camPos, sunDir, throttleCmd.load());
         }
         bridge.endGL(); // → tone-map + blit + pushGLStates
 
@@ -249,6 +269,9 @@ int main() {
 
             mapPanel.draw(win.sfml(), {W - 300.0f, 20.0f});
         }
+
+        // VAB editor — drawn centred over the viewport when open
+        vabEditor.draw(win.sfml());
 
         // FPS counter
         if (fontLoaded) {

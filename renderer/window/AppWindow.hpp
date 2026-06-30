@@ -15,6 +15,7 @@ struct InputCallbacks {
     std::function<void()> onStage;
     std::function<void()> onToggleMap;
     std::function<void()> onToggleHUD;
+    std::function<void()> onToggleVAB;
     std::function<void(float, float)> onPitchYaw;  ///< pitch, yaw in [-1,1]
     std::function<void()> onQuit;
 };

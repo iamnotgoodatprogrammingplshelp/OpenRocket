@@ -55,6 +55,7 @@ add_library(openorbit_core STATIC
     core/aero/Aerodynamics.cpp
     core/thermal/ThermalModel.cpp
     core/parts/PartModule.cpp
+    core/parts/PartCatalog.cpp
 )
 
 target_include_directories(openorbit_core
@@ -80,6 +81,10 @@ add_library(openorbit_renderer STATIC
     renderer/hud/map/OrbitalMap.cpp
     renderer/gl3d/PlanetRenderer.cpp
     renderer/gl3d/ShaderProgram.cpp
+    renderer/gl3d/SpacecraftMesh.cpp
+    renderer/gl3d/AtmosphericScattering.cpp
+    renderer/vab/VehicleAssembly.cpp
+    renderer/vab/VABEditor.cpp
 )
 
 target_include_directories(openorbit_renderer

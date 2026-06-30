@@ -142,6 +142,7 @@ void AppWindow::onKeyPressed(const sf::Event::KeyEvent& key) {
         case K::Space: if (m_inputCbs.onStage)         m_inputCbs.onStage();        break;
         case K::M:     if (m_inputCbs.onToggleMap)     m_inputCbs.onToggleMap();    break;
         case K::H:     if (m_inputCbs.onToggleHUD)     m_inputCbs.onToggleHUD();    break;
+        case K::V:     if (m_inputCbs.onToggleVAB)     m_inputCbs.onToggleVAB();    break;
         case K::Escape:
             if (m_inputCbs.onQuit) m_inputCbs.onQuit();
             m_window.close();
