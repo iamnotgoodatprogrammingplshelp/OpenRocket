@@ -70,7 +70,6 @@ from stable_baselines3 import PPO
 env = SpacecraftEnv()
 model = PPO('MultiInputPolicy', env, verbose=1)
 model.learn(100_000)
-"
 
 
 See `docs/ai/getting_started.md` for full instructions.
