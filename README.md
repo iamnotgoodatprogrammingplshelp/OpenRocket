@@ -87,4 +87,4 @@ See `docs/ai/getting_started.md` for full instructions
 ## License
 
 Engine core: Apache 2.0  
-Assets: CC-BY-SA 4.0
+Assets: CC-BY-SA 4.0 b
